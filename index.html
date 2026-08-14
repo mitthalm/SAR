@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AETHER-SAR | Deep Learning SAR Colorization Platform</title>
+    <meta name="description" content="Aerospace-grade Synthetic Aperture Radar (SAR) to Optical spectrum colorization platform powered by Deep Learning.">
+    <link rel="stylesheet" href="css/main.css">
+    <!-- Three.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <!-- 3D Real Earth, Satellite Orbit & Starfield Background -->
+    <canvas id="webgl-canvas"></canvas>
+
+    <div class="app-shell">
+        <!-- Navigation Header -->
+        <nav class="navbar">
+            <a href="index.html" class="nav-brand">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/><path d="M12 12l6-6"/></svg>
+                </div>
+                <div class="brand-title">
+                    <h1>AETHER-<span>SAR</span></h1>
+                    <p>SPACEBORNE REMOTE SENSING SUITE</p>
+                </div>
+            </a>
+
+            <div class="nav-links">
+                <a href="index.html" class="nav-item active">
+                    <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                    Home
+                </a>
+                <a href="colorizer.html" class="nav-item">
+                    <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                    Colorizer Workspace
+                </a>
+                <a href="gallery.html" class="nav-item">
+                    <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+
+                    Dataset Gallery
+                </a>
+                <a href="benchmarks.html" class="nav-item">
+                    <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                    Performance Benchmarks
+                </a>
+            </div>
+
+            <div class="nav-status">
+                <div class="status-dot"></div>
+                <span>CUDA GPU READY</span>
+            </div>
+        </nav>
+
+        <!-- Hero Section -->
+        <main class="hero-wrapper">
+            <div class="hero-content">
+                <div class="hero-tag">SPACEBORNE REMOTE SENSING AI</div>
+                <h1>Synthesizing <span class="cyan-glow">Optical Color</span> From SAR Backscatter</h1>
+                <p class="hero-desc">
+                    Translating single-channel monochromatic Synthetic Aperture Radar (SAR) microwave data 
+                    into high-fidelity optical spectrum imagery to enhance surface target interpretation.
+                </p>
+
+                <div class="hero-actions">
+                    <a href="colorizer.html" class="btn btn-primary">
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                        LAUNCH COLORIZER WORKSPACE
+                    </a>
+                    <a href="gallery.html" class="btn btn-outline">
+                        EXPLORE GALLERY
+                    </a>
+                </div>
+            </div>
+
+            <!-- Live Orbital Telemetry Overlay Card -->
+            <div class="telemetry-card">
+                <div class="card-head">
+                    <span>SATELLITE TELEMETRY</span>
+                    <span>ORBIT ACTIVE</span>
+                </div>
+                <div class="tel-row">
+                    <span class="lbl">Primary Sensor:</span>
+                    <span class="val">Sentinel-1A (C-Band SAR)</span>
+                </div>
+                <div class="tel-row">
+                    <span class="lbl">Orbit Altitude:</span>
+                    <span class="val">693 km (Sun-Synchronous)</span>
+                </div>
+                <div class="tel-row">
+                    <span class="lbl">Polarization Channels:</span>
+                    <span class="val">VV + VH Dual-Pol</span>
+                </div>
+                <div class="tel-row">
+                    <span class="lbl">AI Model Architecture:</span>
+                    <span class="val">Latent Diffusion (ControlNet)</span>
+                </div>
+            </div>
+        </main>
+
+        <!-- Feature Cards -->
+        <section class="home-features">
+            <div class="features-header">
+                <h2>Advanced Remote Sensing Capabilities</h2>
+                <p>Engineered for Remote Sensing Analysts & Geospatial Researchers</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feat-card">
+                    <div class="feat-icon">
+                        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>
+                    </div>
+                    <h3>Cross-Modality Physics Mapping</h3>
+                    <p>Converts microwave backscatter (roughness & dielectric moisture) to natural optical spectrum wavelengths in LAB color space.</p>
+                </div>
+
+                <div class="feat-card">
+                    <div class="feat-icon">
+                        <svg viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                    </div>
+                    <h3>Latent Diffusion ControlNet</h3>
+                    <p>Eliminates blurry color averaging by enforcing high-level structural constraints and multi-scale texture synthesis.</p>
+                </div>
+
+                <div class="feat-card">
+                    <div class="feat-icon">
+                        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                    </div>
+                    <h3>GeoTIFF & GIS CRS Export</h3>
+                    <p>Exports colorized rasters with embedded EPSG spatial reference metadata, seamlessly compatible with QGIS & ArcGIS.</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/scene.js"></script>
+</body>
+</html>
