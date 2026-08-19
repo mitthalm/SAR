@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dataset Gallery | AETHER-SAR</title>
+    <link rel="stylesheet" href="css/main.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <!-- 3D Background Canvas -->
+    <canvas id="webgl-canvas"></canvas>
+
+    <div class="app-shell">
+        <nav class="navbar">
+            <a href="index.html" class="nav-brand">
+                <div class="brand-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/><path d="M12 12l6-6"/></svg></div>
+                <div class="brand-title">
+                    <h1>AETHER-<span>SAR</span></h1>
+                    <p>SPACEBORNE REMOTE SENSING SUITE</p>
+                </div>
+            </a>
+
+            <div class="nav-links">
+                <a href="index.html" class="nav-item">Home</a>
+                <a href="colorizer.html" class="nav-item">Colorizer Workspace</a>
+                <a href="gallery.html" class="nav-item active">Dataset Gallery</a>
+                <a href="benchmarks.html" class="nav-item">Performance Benchmarks</a>
+            </div>
+
+            <div class="nav-status"><div class="status-dot"></div><span>CUDA GPU READY</span></div>
+        </nav>
+
+        <main class="gallery-wrapper">
+            <div class="gallery-header">
+                <h1>Geospatial Dataset Gallery</h1>
+                <p>256×256 SAR-optical patch pairs across 4 terrain classes, sourced from Sentinel-1 and Sentinel-2, used to train our colorization and classification models.</p>
+            </div>
+
+            <div class="gallery-grid">
+                <div class="g-card">
+                    <div class="g-head">
+                        <span class="g-icon">🌾</span>
+                        <span class="g-tag">SENTINEL-1/2 PAIRED</span>
+                    </div>
+                    <h3>Agricultural Land</h3>
+                    <p>SAR-optical pairs capturing crop plots and farmland boundaries, used to train both our colorization and land-cover classification models.</p>
+                </div>
+
+                <div class="g-card">
+                    <div class="g-head">
+                        <span class="g-icon">🏙️</span>
+                        <span class="g-tag">SENTINEL-1/2 PAIRED</span>
+                    </div>
+                    <h3>Urban Areas</h3>
+                    <p>SAR-optical pairs of built-up regions and city infrastructure, helping the model distinguish dense urban texture from natural terrain.</p>
+                </div>
+
+                <div class="g-card">
+                    <div class="g-head">
+                        <span class="g-icon">🌿</span>
+                        <span class="g-tag">SENTINEL-1/2 PAIRED</span>
+                    </div>
+                    <h3>Grassland</h3>
+                    <p>SAR-optical pairs of open grassland and vegetation-dominant regions.</p>
+                </div>
+
+                <div class="g-card">
+                    <div class="g-head">
+                        <span class="g-icon">🏜️</span>
+                        <span class="g-tag">SENTINEL-1/2 PAIRED</span>
+                    </div>
+                    <h3>Barren Land</h3>
+                    <p>SAR-optical pairs of bare soil and undeveloped terrain, rounding out our 4-class terrain coverage.</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/scene.js"></script>
+</body>
+</html>

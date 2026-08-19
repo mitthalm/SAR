@@ -1,0 +1,11 @@
+{
+  "python.defaultInterpreterPath": "${workspaceFolder}/SAR/backend/venv/Scripts/python.exe",
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/SAR/backend",
+    "${workspaceFolder}/SAR/backend/venv/Lib/site-packages"
+  ],
+  "python.autoComplete.extraPaths": [
+    "${workspaceFolder}/SAR/backend",
+    "${workspaceFolder}/SAR/backend/venv/Lib/site-packages"
+  ]
+}

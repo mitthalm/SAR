@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Colorizer Workspace | AETHER-SAR</title>
+    <link rel="stylesheet" href="css/main.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <!-- 3D Background Canvas -->
+    <canvas id="webgl-canvas"></canvas>
+
+    <div class="app-shell">
+        <!-- Navigation Header -->
+        <nav class="navbar">
+            <a href="index.html" class="nav-brand">
+                <div class="brand-icon">
+                    <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/><path d="M12 12l6-6"/></svg>
+                </div>
+                <div class="brand-title">
+                    <h1>AETHER-<span>SAR</span></h1>
+                    <p>SPACEBORNE REMOTE SENSING SUITE</p>
+                </div>
+            </a>
+
+            <div class="nav-links">
+                <a href="index.html" class="nav-item">
+                    <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+                    Home
+                </a>
+                <a href="colorizer.html" class="nav-item active">
+                    <svg viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                    Colorizer Workspace
+                </a>
+                <a href="gallery.html" class="nav-item">
+                    <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+
+                    Dataset Gallery
+                </a>
+                <a href="benchmarks.html" class="nav-item">
+                    <svg viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                    Performance Benchmarks
+                </a>
+            </div>
+
+            <div class="nav-status">
+                <div class="status-dot"></div>
+                <span>CUDA GPU READY</span>
+            </div>
+
+            <button class="mobile-drawer-toggle" id="mobile-drawer-toggle" aria-label="Toggle Controls Menu">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+                <span>CONTROLS</span>
+            </button>
+        </nav>
+
+        <!-- Mobile Drawer Backdrop Overlay -->
+        <div class="sidebar-backdrop" id="sidebar-backdrop"></div>
+
+        <main class="workspace-container">
+            <!-- Left Sidebar Controls -->
+            <aside class="workspace-sidebar">
+                <div class="sidebar-section">
+                    <div class="section-label">Analysis Mode</div>
+                    <div class="mode-toggle" id="mode-toggle">
+                        <button class="mode-btn active" data-mode="colorize">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+                            Realistic Colorization
+                        </button>
+                        <button class="mode-btn" data-mode="classify">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                            Classified Land-Cover
+                        </button>
+                        <button class="mode-btn" data-mode="change_detect">
+                            <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 3h5v5M4 20L21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/></svg>
+                            Change Detection
+                        </button>
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="section-label">Select SAR Dataset Preset</div>
+                    <div class="preset-cards">
+                        <div class="p-card active" data-preset="coastal">
+                            <div class="p-icon">🌊</div>
+                            <div class="p-name">Coastal Port</div>
+                        </div>
+                        <div class="p-card" data-preset="metropolis">
+                            <div class="p-icon">🏙️</div>
+                            <div class="p-name">Metropolis</div>
+                        </div>
+                        <div class="p-card" data-preset="delta">
+                            <div class="p-icon">🌿</div>
+                            <div class="p-name">River Delta</div>
+                        </div>
+                        <div class="p-card" data-preset="agriculture">
+                            <div class="p-icon">🌾</div>
+                            <div class="p-name">Crop Plots</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Single Image Upload Section (colorize & classify modes) -->
+                <div class="single-upload-section" id="single-upload-section">
+                    <div class="sidebar-section">
+                        <div class="section-label">Upload Custom SAR Raster</div>
+                        <div class="dropzone-box" id="dropzone">
+                            <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="#00f3ff" stroke-width="2"><path d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                            <p>Drag & Drop GeoTIFF / PNG File</p>
+                            <span>Max file size: 100 MB</span>
+                            <input type="file" id="file-input" accept="image/*,.tif" style="display:none">
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section">
+                        <div class="section-label">Ground-Truth Optical (Optional)</div>
+                        <div class="dropzone-box dropzone-sm" id="gt-dropzone">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#00ff88" stroke-width="2"><path d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                            <p id="gt-file-name">Upload Optical Reference for PSNR/SSIM</p>
+                            <span>Calculates model accuracy metrics</span>
+                            <input type="file" id="gt-file-input" accept="image/*,.tif" style="display:none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Dual Dropzones & Pixel Resolution for Change Detection (hidden by default) -->
+                <div class="change-detect-controls hidden" id="change-detect-controls">
+                    <div class="sidebar-section">
+                        <div class="section-label">Before Raster (T1 Baseline)</div>
+                        <div class="dropzone-box dropzone-sm" id="dropzone-before">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#00f3ff" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <p id="before-file-name">Upload Before Raster (T1)</p>
+                            <span>Initial SAR Baseline</span>
+                            <input type="file" id="file-input-before" accept="image/*,.tif" style="display:none">
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section">
+                        <div class="section-label">After Raster (T2 Target)</div>
+                        <div class="dropzone-box dropzone-sm" id="dropzone-after">
+                            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#ff00a0" stroke-width="2"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            <p id="after-file-name">Upload After Raster (T2)</p>
+                            <span>Subsequent SAR Capture</span>
+                            <input type="file" id="file-input-after" accept="image/*,.tif" style="display:none">
+                        </div>
+                    </div>
+
+                    <div class="sidebar-section">
+                        <div class="section-label">Spatial Resolution (Meters/Pixel)</div>
+                        <input type="number" class="custom-select" id="pixel-resolution-input" value="10.0" step="0.5" min="0.1" max="100.0">
+                    </div>
+                </div>
+
+                <div class="sidebar-section">
+                    <div class="section-label">Despeckling Filter</div>
+                    <select class="custom-select" id="filter-select">
+                        <option value="enhanced_lee">Enhanced Lee Filter (Window 5x5)</option>
+                        <option value="frost">Frost Adaptive Filter</option>
+                        <option value="deep_despeckle">Deep Neural Despeckler</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" id="btn-run-model">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    <span id="btn-run-label">RUN COLORIZATION MODEL</span>
+                </button>
+
+                <button class="btn btn-compare" id="btn-compare-both">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="6" height="18" rx="1"/><rect x="9" y="3" width="6" height="18" rx="1"/><rect x="16" y="3" width="6" height="18" rx="1"/></svg>
+                    COMPARE BOTH MODES
+                </button>
+
+                <!-- Collapsible Inference History Panel -->
+                <div class="sidebar-section">
+                    <div class="section-label history-header" id="history-header">
+                        <span>Inference History</span>
+                        <svg class="chevron-icon" id="history-chevron" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+                    </div>
+                    <div class="history-content collapsed" id="history-content">
+                        <div class="history-list" id="history-list">
+                            <div class="history-empty">No inference records yet</div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- Center Stage Dual Comparison Viewport -->
+            <section class="workspace-stage-box">
+                <div class="stage-header-row">
+                    <div class="stage-title-wrap">
+                        <h2>SAR Backscatter vs AI Optical Spectrum</h2>
+                        <div class="metrics-banner hidden" id="metrics-banner">
+                            <span class="metrics-tag">ACCURACY METRICS</span>
+                            <span class="metric-item">PSNR: <strong id="metric-psnr">--</strong> dB</span>
+                            <span class="metric-divider">|</span>
+                            <span class="metric-item">SSIM: <strong id="metric-ssim">--</strong></span>
+                        </div>
+                    </div>
+                    <div class="stage-actions-wrap">
+                        <button class="btn btn-outline" id="btn-download-report">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                            Download Report
+                        </button>
+                        <button class="btn btn-success" id="btn-download">
+                            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+                            Export Image
+                        </button>
+                    </div>
+                </div>
+
+                <div class="comparison-stage" id="comparison-container">
+                    <canvas id="comp-canvas-base" class="viewer-layer"></canvas>
+
+                    <div class="colorized-wrapper" id="comp-clip-wrapper">
+                        <canvas id="comp-canvas-clip" class="viewer-layer"></canvas>
+                    </div>
+
+                    <div class="curtain-handle" id="curtain-handle">
+                        <div class="handle-knob">
+                            <svg viewBox="0 0 24 24"><path d="M18 8L22 12L18 16M6 8L2 12L6 16"/></svg>
+                        </div>
+                    </div>
+
+                    <input type="range" class="curtain-slider-input" id="comp-slider-input" min="0" max="100" value="50">
+
+                    <div class="layer-badge left" id="badge-left">AI PREDICTED OPTICAL [LAB-TO-RGB]</div>
+                    <div class="layer-badge right">RAW SAR MONOCHROMATIC BACKSCATTER</div>
+                </div>
+
+                <!-- Land-Cover Legend (hidden by default, shown in classify mode) -->
+                <div class="land-cover-legend hidden" id="land-cover-legend">
+                    <div class="legend-header-row">
+                        <div class="legend-title">LAND-COVER CLASSIFICATION LEGEND</div>
+                        <label class="toggle-switch-label" id="confidence-toggle-label">
+                            <input type="checkbox" id="confidence-checkbox">
+                            <span class="toggle-slider"></span>
+                            <span class="toggle-text">Show Confidence Heatmap</span>
+                        </label>
+                    </div>
+                    <div class="legend-items" id="class-swatches-row">
+                        <div class="legend-item">
+                            <div class="legend-swatch" style="background: rgb(0, 0, 255);"></div>
+                            <span>Water</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-swatch" style="background: rgb(0, 200, 0);"></div>
+                            <span>Vegetation</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-swatch" style="background: rgb(150, 150, 150);"></div>
+                            <span>Urban / Built-up</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-swatch" style="background: rgb(194, 178, 128);"></div>
+                            <span>Bare Soil / Other</span>
+                        </div>
+                    </div>
+                    <!-- Confidence Scale (hidden unless confidence heatmap active) -->
+                    <div class="confidence-scale-row hidden" id="confidence-scale-row">
+                        <span>0% (Uncertain)</span>
+                        <div class="confidence-gradient-bar"></div>
+                        <span>100% (High Confidence)</span>
+                    </div>
+
+                    <!-- AI Narrative Analysis Container & Action Button for Classify Mode -->
+                    <div class="narrative-section">
+                        <button class="btn btn-outline btn-narrate" id="btn-generate-narrative-classify">
+                            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            <span>Generate Analysis</span>
+                        </button>
+                        <div class="narrative-box hidden" id="narrative-box-classify">
+                            <div class="narrative-badge">
+                                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                <span>AI LLM NARRATIVE</span>
+                            </div>
+                            <p class="narrative-text" id="narrative-text-classify"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Compare Both Dual Slider Container (hidden by default) -->
+                <div class="compare-triple hidden" id="compare-triple">
+                    <!-- Panel 1: Realistic Colorization vs SAR Input Slider -->
+                    <div class="compare-panel-slider">
+                        <div class="compare-label" id="compare-label-colorize">REALISTIC COLORIZATION VS SAR</div>
+                        <div class="comparison-stage compare-stage-mini">
+                            <canvas id="compare-canvas-colorize-base" class="viewer-layer"></canvas>
+                            <div class="colorized-wrapper" id="compare-clip-colorize">
+                                <canvas id="compare-canvas-colorize-clip" class="viewer-layer"></canvas>
+                            </div>
+                            <div class="curtain-handle">
+                                <div class="handle-knob">
+                                    <svg viewBox="0 0 24 24"><path d="M18 8L22 12L18 16M6 8L2 12L6 16"/></svg>
+                                </div>
+                            </div>
+                            <input type="range" class="curtain-slider-input" id="compare-slider-colorize" min="0" max="100" value="50">
+                        </div>
+                    </div>
+
+                    <!-- Panel 2: Classified Land-Cover vs SAR Input Slider -->
+                    <div class="compare-panel-slider">
+                        <div class="compare-label" id="compare-label-classify">CLASSIFIED LAND-COVER VS SAR</div>
+                        <div class="comparison-stage compare-stage-mini">
+                            <canvas id="compare-canvas-classify-base" class="viewer-layer"></canvas>
+                            <div class="colorized-wrapper" id="compare-clip-classify">
+                                <canvas id="compare-canvas-classify-clip" class="viewer-layer"></canvas>
+                            </div>
+                            <div class="curtain-handle">
+                                <div class="handle-knob">
+                                    <svg viewBox="0 0 24 24"><path d="M18 8L22 12L18 16M6 8L2 12L6 16"/></svg>
+                                </div>
+                            </div>
+                            <input type="range" class="curtain-slider-input" id="compare-slider-classify" min="0" max="100" value="50">
+                        </div>
+                    </div>
+
+                    <!-- Legend inside compare view -->
+                    <div class="land-cover-legend compare-legend">
+                        <div class="legend-items">
+                            <div class="legend-item"><div class="legend-swatch" style="background:rgb(0,0,255);"></div><span>Water</span></div>
+                            <div class="legend-item"><div class="legend-swatch" style="background:rgb(0,200,0);"></div><span>Vegetation</span></div>
+                            <div class="legend-item"><div class="legend-swatch" style="background:rgb(150,150,150);"></div><span>Urban</span></div>
+                            <div class="legend-item"><div class="legend-swatch" style="background:rgb(194,178,128);"></div><span>Bare Soil</span></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Change Detection Stage Container (hidden by default) -->
+                <div class="change-stage-wrapper hidden" id="change-stage-wrapper">
+                    <!-- Headline Stat Banner -->
+                    <div class="change-headline-banner" id="change-headline-banner">
+                        <span class="headline-tag">SPATIAL CHANGE STATS</span>
+                        <h3 id="change-headline-text">0.0% of the region changed (0.00 km² total)</h3>
+                    </div>
+
+                    <!-- 3-Panel Renders Grid -->
+                    <div class="change-triple-grid">
+                        <div class="change-panel">
+                            <div class="change-panel-label">BEFORE CLASSIFIED (T1)</div>
+                            <canvas id="change-canvas-before" class="change-canvas"></canvas>
+                        </div>
+                        <div class="change-panel">
+                            <div class="change-panel-label">AFTER CLASSIFIED (T2)</div>
+                            <canvas id="change-canvas-after" class="change-canvas"></canvas>
+                        </div>
+                        <div class="change-panel">
+                            <div class="change-panel-label">CHANGE OVERLAY MAP</div>
+                            <canvas id="change-canvas-overlay" class="change-canvas"></canvas>
+                        </div>
+                    </div>
+
+                    <!-- Transitions Legend & Summary Table -->
+                    <div class="change-results-box">
+                        <div class="legend-title">LAND-COVER TRANSITIONS PALETTE</div>
+                        <div class="legend-items" id="change-legend-items">
+                            <div class="legend-item"><div class="legend-swatch" style="background: rgb(255, 0, 100);"></div><span>Veg → Urban</span></div>
+                            <div class="legend-item"><div class="legend-swatch" style="background: rgb(0, 200, 255);"></div><span>Veg → Water</span></div>
+                            <div class="legend-item"><div class="legend-swatch" style="background: rgb(255, 140, 0);"></div><span>Veg → Bare Soil</span></div>
+                            <div class="legend-item"><div class="legend-swatch" style="background: rgb(0, 255, 128);"></div><span>Water → Veg</span></div>
+                            <div class="legend-item"><div class="legend-swatch" style="background: rgb(255, 220, 0);"></div><span>Water → Bare Soil</span></div>
+                            <div class="legend-item"><div class="legend-swatch" style="background: rgb(200, 50, 255);"></div><span>Bare → Urban</span></div>
+                        </div>
+
+                        <!-- AI Narrative Analysis Container & Action Button for Change Detect Mode -->
+                        <div class="narrative-section">
+                            <button class="btn btn-outline btn-narrate" id="btn-generate-narrative-change">
+                                <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                <span>Generate Analysis</span>
+                            </button>
+                            <div class="narrative-box hidden" id="narrative-box-change">
+                                <div class="narrative-badge badge-magenta">
+                                    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                                    <span>AI LLM NARRATIVE</span>
+                                </div>
+                                <p class="narrative-text" id="narrative-text-change"></p>
+                            </div>
+                        </div>
+
+                        <!-- Transitions Summary Table -->
+                        <table class="change-stats-table" id="change-stats-table">
+                            <thead>
+                                <tr>
+                                    <th>Transition Pair</th>
+                                    <th>Area Changed (km²)</th>
+                                    <th>Percent of Image</th>
+                                </tr>
+                            </thead>
+                            <tbody id="change-table-body">
+                                <tr><td colspan="3" style="text-align:center; color: var(--text-muted); font-size:12px;">Run Change Detection to view stats</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/scene.js"></script>
+    <script src="js/ui.js"></script>
+</body>
+</html>

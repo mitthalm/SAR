@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Performance Benchmarks | AETHER-SAR</title>
+    <link rel="stylesheet" href="css/main.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <!-- 3D Background Canvas -->
+    <canvas id="webgl-canvas"></canvas>
+
+    <div class="app-shell">
+        <nav class="navbar">
+            <a href="index.html" class="nav-brand">
+                <div class="brand-icon"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/><path d="M12 12l6-6"/></svg></div>
+                <div class="brand-title">
+                    <h1>AETHER-<span>SAR</span></h1>
+                    <p>SPACEBORNE REMOTE SENSING SUITE</p>
+                </div>
+            </a>
+
+            <div class="nav-links">
+                <a href="index.html" class="nav-item">Home</a>
+                <a href="colorizer.html" class="nav-item">Colorizer Workspace</a>
+                <a href="gallery.html" class="nav-item">Dataset Gallery</a>
+                <a href="benchmarks.html" class="nav-item active">Performance Benchmarks</a>
+            </div>
+
+            <div class="nav-status"><div class="status-dot"></div><span>CUDA GPU READY</span></div>
+        </nav>
+
+        <main class="benchmarks-wrapper">
+            <div class="gallery-header">
+                <h1>Model Evaluation & Performance Benchmarks</h1>
+                <p>Quantitative image reconstruction metrics & GPU inference speed telemetry.</p>
+            </div>
+
+            <div class="stats-row">
+                <div class="b-card">
+                    <div class="b-lbl">STRUCTURAL SIMILARITY</div>
+                    <div class="b-val" id="bench-ssim">—</div>
+                    <div class="b-sub">↑ SSIM Index (live from Colorizer)</div>
+                </div>
+                <div class="b-card">
+                    <div class="b-lbl">PEAK SIGNAL TO NOISE</div>
+                    <div class="b-val" id="bench-psnr">—</div>
+                    <div class="b-sub">↑ PSNR dB (live from Colorizer)</div>
+                </div>
+                <div class="b-card">
+                    <div class="b-lbl">TRAINING SCOPE</div>
+                    <div class="b-val" style="font-size:1.1rem">50 + 20</div>
+                    <div class="b-sub">50 epochs U-Net + 20 epochs GAN refinement</div>
+                </div>
+                <div class="b-card">
+                    <div class="b-lbl">INFERENCE SPEED</div>
+                    <div class="b-val" id="bench-speed">—</div>
+                    <div class="b-sub">Last measured (live from Colorizer)</div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="js/scene.js"></script>
+    <script>
+        // Hydrate benchmark cards from localStorage (persisted by Colorizer Workspace)
+        const ssim = localStorage.getItem('aether_last_ssim');
+        const psnr = localStorage.getItem('aether_last_psnr');
+        const speedMs = localStorage.getItem('aether_last_inference_ms');
+        const fallback = 'Run a comparison in Colorizer Workspace to see live metrics';
+        const el = (id) => document.getElementById(id);
+        if (ssim) { el('bench-ssim').textContent = ssim; }
+        else { el('bench-ssim').textContent = fallback; el('bench-ssim').style.fontSize = '0.85rem'; }
+        if (psnr) { el('bench-psnr').textContent = psnr + ' dB'; }
+        else { el('bench-psnr').textContent = fallback; el('bench-psnr').style.fontSize = '0.85rem'; }
+        if (speedMs) { el('bench-speed').textContent = (parseFloat(speedMs) / 1000).toFixed(2) + ' s'; }
+        else { el('bench-speed').textContent = fallback; el('bench-speed').style.fontSize = '0.85rem'; }
+    </script>
+</body>
+</html>
