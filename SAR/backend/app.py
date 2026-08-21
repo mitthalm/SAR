@@ -4,6 +4,7 @@ import json
 import logging
 import os
 from pathlib import Path
+import urllib.request
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -43,6 +44,29 @@ CLASSIFIER_CHECKPOINT_PATH = CHECKPOINT_DIR / "classifier_final_v3.pth"
 FUSION_CHECKPOINT_PATH = CHECKPOINT_DIR / "fusion_epoch25.pth"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+CHECKPOINT_URLS = {
+    "gan_final_epoch44.pth": "https://huggingface.co/manoj5kumar/aether-sar-checkpoints/resolve/main/gan_final_epoch44.pth",
+    "classifier_final_v3.pth": "https://huggingface.co/manoj5kumar/aether-sar-checkpoints/resolve/main/classifier_final_v3.pth",
+    "fusion_epoch25.pth": "https://huggingface.co/manoj5kumar/aether-sar-checkpoints/resolve/main/fusion_epoch25.pth",
+}
+
+
+def ensure_checkpoints():
+    os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+    for filename, url in CHECKPOINT_URLS.items():
+        path = CHECKPOINT_DIR / filename
+        if not path.exists():
+            print(f"Downloading {filename} from Hugging Face...")
+            logger.info(f"Downloading {filename} from Hugging Face...")
+            try:
+                urllib.request.urlretrieve(url, str(path))
+                print(f"Downloaded {filename}")
+                logger.info(f"Downloaded {filename}")
+            except Exception as e:
+                print(f"Failed to download {filename}: {e}")
+                logger.error(f"Failed to download {filename}: {e}")
+
+
 app = FastAPI(title="SAR Colorizer Backend")
 
 # Enable CORS for all origins (without allow_credentials to avoid CORS browser conflicts with wildcard origins)
@@ -66,6 +90,9 @@ fusion_loaded: bool = False
 @app.on_event("startup")
 async def startup_event():
     global model, model_loaded, classifier, classifier_loaded, fusion_model, fusion_loaded
+
+    # Ensure checkpoint files exist locally before loading
+    ensure_checkpoints()
 
     # Initialize SQLite DB and outputs folder
     try:
