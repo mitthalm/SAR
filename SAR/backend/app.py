@@ -18,7 +18,7 @@ import torch
 import groq
 from groq import Groq
 
-from classifier_model import UNetClassifier, classify_sar
+from classifier_model import CLASS_LABELS, UNetClassifier, classify_sar
 from database import (
     delete_history_record,
     get_history_record_by_id,
@@ -26,6 +26,7 @@ from database import (
     init_db,
     save_history_entry,
 )
+from fusion_model import FusionUNet, fuse_sar_optical
 from model import UNet, colorize_sar
 
 # Load environment variables from .env file if present
@@ -37,8 +38,9 @@ logger = logging.getLogger("aether-sar")
 
 # Paths and device setup
 CHECKPOINT_DIR = Path(__file__).resolve().parent / "checkpoints"
-CHECKPOINT_PATH = CHECKPOINT_DIR / "gan_final_epoch24.pth"
-CLASSIFIER_CHECKPOINT_PATH = CHECKPOINT_DIR / "classifier.pth"
+CHECKPOINT_PATH = CHECKPOINT_DIR / "gan_final_epoch44.pth"
+CLASSIFIER_CHECKPOINT_PATH = CHECKPOINT_DIR / "classifier_final_v3.pth"
+FUSION_CHECKPOINT_PATH = CHECKPOINT_DIR / "fusion_epoch25.pth"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 app = FastAPI(title="SAR Colorizer Backend")
@@ -57,11 +59,13 @@ model: UNet | None = None
 model_loaded: bool = False
 classifier: UNetClassifier | None = None
 classifier_loaded: bool = False
+fusion_model: FusionUNet | None = None
+fusion_loaded: bool = False
 
 
 @app.on_event("startup")
 async def startup_event():
-    global model, model_loaded, classifier, classifier_loaded
+    global model, model_loaded, classifier, classifier_loaded, fusion_model, fusion_loaded
 
     # Initialize SQLite DB and outputs folder
     try:
@@ -104,6 +108,34 @@ async def startup_event():
             logger.error("Failed to load classifier weights: %s", e)
             classifier_loaded = False
 
+    # --- Load Fusion Model ---
+    fusion_model = FusionUNet(in_channels=4, out_channels=2).to(DEVICE)
+
+    if not FUSION_CHECKPOINT_PATH.exists():
+        logger.warning("Fusion checkpoint not found at %s", FUSION_CHECKPOINT_PATH)
+        fusion_loaded = False
+    else:
+        try:
+            fus_state = torch.load(FUSION_CHECKPOINT_PATH, map_location=DEVICE, weights_only=True)
+            fusion_model.load_state_dict(fus_state)
+            fusion_model.eval()
+            fusion_loaded = True
+            logger.info("Fusion model loaded from %s on %s", FUSION_CHECKPOINT_PATH, DEVICE)
+        except Exception as e:
+            logger.error("Failed to load fusion weights: %s", e)
+            fusion_loaded = False
+
+    # --- Model Health & Shape Logs ---
+    def _shape_summary(m, name):
+        params = sum(p.numel() for p in m.parameters())
+        return f"{name}: {params:,} parameters"
+
+    logger.info("=== MODEL HEALTH CHECK ===")
+    logger.info("  Colorizer (SAR -> Color) : %s | %s", "✓ LOADED" if model_loaded else "✗ MISSING", _shape_summary(model, "UNet(1->2)"))
+    logger.info("  Classifier (SAR -> Class): %s | %s", "✓ LOADED" if classifier_loaded else "✗ MISSING", _shape_summary(classifier, "UNetClassifier(1->4)"))
+    logger.info("  Fusion (SAR+Opt -> Color): %s | %s", "✓ LOADED" if fusion_loaded else "✗ MISSING", _shape_summary(fusion_model, "FusionUNet(4->2)"))
+    logger.info("==========================")
+
     logger.info("Despeckling Filter Support: Enhanced Lee (Real Adaptive Filter), Frost & Deep Despeckle (Placeholder Fallback to Median Blur).")
 
 
@@ -113,6 +145,12 @@ async def health():
         "status": "ok",
         "colorizer_loaded": model_loaded,
         "classifier_loaded": classifier_loaded,
+        "fusion_loaded": fusion_loaded,
+        "checkpoints": {
+            "colorizer": CHECKPOINT_PATH.name,
+            "classifier": CLASSIFIER_CHECKPOINT_PATH.name,
+            "fusion": FUSION_CHECKPOINT_PATH.name
+        },
         "despeckling_filters": {
             "enhanced_lee": "Real Adaptive Lee Filter",
             "frost": "Placeholder Fallback (Median Blur k=5)",
@@ -206,6 +244,81 @@ async def colorize(
         )
 
 
+@app.post("/fuse")
+async def fuse(
+    sar_file: UploadFile = File(...),
+    optical_file: UploadFile = File(...),
+    filter_type: str = Form("enhanced_lee"),
+):
+    """
+    Multi-Sensor Fusion endpoint: Accepts SAR image + partial/masked optical reference image,
+    concatenates into 4-channel input [SAR, R, G, B], and passes through trained FusionUNet.
+    """
+    if not fusion_loaded or fusion_model is None:
+        raise HTTPException(
+            status_code=500,
+            detail="Fusion model is not loaded. Please ensure fusion_epoch25.pth is present in backend/checkpoints/.",
+        )
+
+    try:
+        # Read uploaded SAR raster & convert to grayscale numpy array
+        sar_contents = await sar_file.read()
+        sar_pil = Image.open(io.BytesIO(sar_contents)).convert("L")
+        sar_np = np.array(sar_pil)
+        original_h, original_w = sar_np.shape[:2]
+
+        # Read uploaded optical reference raster & convert to RGB numpy array
+        opt_contents = await optical_file.read()
+        opt_pil = Image.open(io.BytesIO(opt_contents)).convert("RGB")
+        opt_np = np.array(opt_pil)
+
+        # Run multi-sensor fusion inference
+        rgb_np, inference_time_ms = fuse_sar_optical(
+            sar_np,
+            opt_np,
+            fusion_model,
+            DEVICE,
+            size=256,
+            filter_type=filter_type,
+        )
+
+        # Convert output RGB numpy array to PNG bytes
+        out_pil = Image.fromarray(rgb_np)
+        buf = io.BytesIO()
+        out_pil.save(buf, format="PNG")
+        png_bytes = buf.getvalue()
+        buf.seek(0)
+
+        # Save to SQLite history & outputs/ directory as side-effect
+        record_id = None
+        try:
+            input_fn = sar_file.filename or "uploaded_fusion_sar.png"
+            record_id = save_history_entry(
+                mode="fusion",
+                filename=input_fn,
+                image_bytes=png_bytes,
+                inference_time_ms=inference_time_ms,
+                psnr=None,
+                ssim=None,
+            )
+        except Exception as e:
+            logger.warning("Could not save history entry for fusion: %s", e)
+
+        response = StreamingResponse(buf, media_type="image/png")
+        response.headers["X-Inference-Time-Ms"] = f"{inference_time_ms:.2f}"
+        response.headers["X-Image-Size"] = f"{original_w}x{original_h}"
+        response.headers["X-Model-Checkpoint"] = "fusion_epoch25"
+
+        if record_id:
+            response.headers["X-History-ID"] = record_id
+
+        return response
+
+    except Exception as e:
+        logger.error("Fusion inference error: %s", e, exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Fusion model error: {str(e)}")
+
+
 @app.post("/classify")
 async def classify(
     file: UploadFile = File(...),
@@ -227,8 +340,24 @@ async def classify(
         original_h, original_w = img_np.shape[:2]
 
         # Run classification inference with requested despeckling filter
-        rgb_np, confidence_np, inference_time_ms, _ = classify_sar(
+        rgb_np, confidence_np, inference_time_ms, class_map = classify_sar(
             img_np, classifier, DEVICE, size=256, filter_type=filter_type
+        )
+
+        # Compute per-class pixel percentages from class_map
+        total_pixels = class_map.size
+        class_percentages = {}
+        for idx, label in CLASS_LABELS.items():
+            count = int(np.sum(class_map == idx))
+            class_percentages[label] = round(count / total_pixels * 100, 2)
+
+        # Mean confidence score (normalized from 0-255 heatmap to 0.0-1.0)
+        mean_confidence = round(float(np.mean(confidence_np) / 255.0), 4)
+
+        logger.info(
+            "Classification breakdown: %s | Mean confidence: %.2f%%",
+            ", ".join(f"{k}: {v}%" for k, v in class_percentages.items()),
+            mean_confidence * 100,
         )
 
         # Convert classified output RGB numpy array to PNG bytes & base64
@@ -275,6 +404,8 @@ async def classify(
                 "image_size": f"{original_w}x{original_h}",
                 "model_checkpoint": "classifier",
                 "classification_mode": "land_cover",
+                "class_percentages": class_percentages,
+                "mean_confidence": mean_confidence,
             },
             headers=headers,
         )

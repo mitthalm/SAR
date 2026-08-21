@@ -79,6 +79,18 @@ class SARUIController {
         this.afterFileName = document.getElementById('after-file-name');
         this.pixelResolutionInput = document.getElementById('pixel-resolution-input');
 
+        // Fusion Elements
+        this.fusionControls = document.getElementById('fusion-controls');
+        this.dropzoneFusionSar = document.getElementById('dropzone-fusion-sar');
+        this.fileInputFusionSar = document.getElementById('file-input-fusion-sar');
+        this.fusionSarFileName = document.getElementById('fusion-sar-file-name');
+        this.dropzoneFusionOpt = document.getElementById('dropzone-fusion-opt');
+        this.fileInputFusionOpt = document.getElementById('file-input-fusion-opt');
+        this.fusionOptFileName = document.getElementById('fusion-opt-file-name');
+
+        this.lastFusionSarFile = null;
+        this.lastFusionOptFile = null;
+
         this.changeStageWrapper = document.getElementById('change-stage-wrapper');
         this.changeHeadlineText = document.getElementById('change-headline-text');
         this.changeCanvasBefore = document.getElementById('change-canvas-before');
@@ -302,10 +314,35 @@ class SARUIController {
             });
         }
 
+        // --- Fusion Dropzones ---
+        if (this.dropzoneFusionSar && this.fileInputFusionSar) {
+            this.dropzoneFusionSar.addEventListener('click', () => this.fileInputFusionSar.click());
+            this.fileInputFusionSar.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    this.lastFusionSarFile = e.target.files[0];
+                    if (this.fusionSarFileName) this.fusionSarFileName.textContent = `SAR: ${this.lastFusionSarFile.name}`;
+                    this.dropzoneFusionSar.classList.add('active-gt');
+                }
+            });
+        }
+
+        if (this.dropzoneFusionOpt && this.fileInputFusionOpt) {
+            this.dropzoneFusionOpt.addEventListener('click', () => this.fileInputFusionOpt.click());
+            this.fileInputFusionOpt.addEventListener('change', (e) => {
+                if (e.target.files.length > 0) {
+                    this.lastFusionOptFile = e.target.files[0];
+                    if (this.fusionOptFileName) this.fusionOptFileName.textContent = `Optical: ${this.lastFusionOptFile.name}`;
+                    this.dropzoneFusionOpt.classList.add('active-gt');
+                }
+            });
+        }
+
         // --- Action Buttons ---
         if (this.btnRunModel) {
             this.btnRunModel.addEventListener('click', () => {
-                if (this.currentMode === 'change_detect') {
+                if (this.currentMode === 'fusion') {
+                    this.processFusion();
+                } else if (this.currentMode === 'change_detect') {
                     this.processChangeDetection();
                 } else if (this.lastUploadedFile) {
                     this.currentFetchPromise = processSARFile(this.lastUploadedFile, this.currentMode, this.lastGroundTruthFile);
@@ -369,18 +406,22 @@ class SARUIController {
     updateModeUI() {
         const isClassify = this.currentMode === 'classify';
         const isChangeDetect = this.currentMode === 'change_detect';
+        const isFusion = this.currentMode === 'fusion';
 
-        // Single upload section vs Change Detection controls
+        // Single upload vs Change Detect vs Fusion controls
         if (this.singleUploadSection) {
-            this.singleUploadSection.classList.toggle('hidden', isChangeDetect);
+            this.singleUploadSection.classList.toggle('hidden', isChangeDetect || isFusion);
         }
         if (this.changeDetectControls) {
             this.changeDetectControls.classList.toggle('hidden', !isChangeDetect);
         }
+        if (this.fusionControls) {
+            this.fusionControls.classList.toggle('hidden', !isFusion);
+        }
 
-        // Compare Both button (hidden in Change Detection)
+        // Compare Both button (hidden in Change Detection & Fusion)
         if (this.btnCompareBoth) {
-            this.btnCompareBoth.classList.toggle('hidden', isChangeDetect);
+            this.btnCompareBoth.classList.toggle('hidden', isChangeDetect || isFusion);
         }
 
         // Stage containers visibility
@@ -393,7 +434,9 @@ class SARUIController {
 
         // Update RUN button label
         if (this.btnRunLabel) {
-            if (isChangeDetect) {
+            if (isFusion) {
+                this.btnRunLabel.textContent = 'RUN FUSION MODEL';
+            } else if (isChangeDetect) {
                 this.btnRunLabel.textContent = 'RUN CHANGE DETECTION';
             } else if (isClassify) {
                 this.btnRunLabel.textContent = 'RUN CLASSIFICATION MODEL';
@@ -404,14 +447,22 @@ class SARUIController {
 
         // Update left badge default text
         if (this.badgeLeft) {
-            this.badgeLeft.textContent = isClassify
-                ? 'CLASSIFIED LAND-COVER MAP'
-                : 'AI PREDICTED OPTICAL [LAB-TO-RGB]';
+            if (isFusion) {
+                this.badgeLeft.textContent = 'FUSED OPTICAL SPECTRUM [SAR+OPT]';
+            } else if (isClassify) {
+                this.badgeLeft.textContent = 'CLASSIFIED LAND-COVER MAP';
+            } else {
+                this.badgeLeft.textContent = 'AI PREDICTED OPTICAL [LAB-TO-RGB]';
+            }
         }
 
-        // Show/hide legend
+        // Show/hide legend + stats panel
         if (this.legend) {
             this.legend.classList.toggle('hidden', !isClassify);
+        }
+        const statsPanel = document.getElementById('class-stats-panel');
+        if (statsPanel && !isClassify) {
+            statsPanel.classList.add('hidden');
         }
 
         // Reset confidence checkbox when changing modes
@@ -449,7 +500,7 @@ class SARUIController {
         if (targetSrc && this.compCanvasClip) {
             const container = document.getElementById('comparison-container');
             const cw = container?.clientWidth || 600;
-            const ch = container?.clientHeight || 520;
+            const ch = cw;
 
             await drawImageToCanvas(targetSrc, this.compCanvasClip, cw, ch);
 
@@ -639,14 +690,23 @@ class SARUIController {
                     this.classifiedImageSrc = result.classifiedImage;
                     this.confidenceHeatmapSrc = result.confidenceHeatmap;
 
+                    // Cache stats for narrative generation
+                    if (result.classPercentages) {
+                        this.lastClassifyStats = {
+                            class_percentages: result.classPercentages,
+                            mean_confidence: result.meanConfidence ?? 0,
+                        };
+                        this.renderClassStats(result.classPercentages, result.meanConfidence);
+                    }
+
                     // Respect current confidence checkbox toggle state
                     const showConfidence = this.confidenceCheckbox && this.confidenceCheckbox.checked;
                     const activeSrc = showConfidence ? this.confidenceHeatmapSrc : this.classifiedImageSrc;
 
                     if (this.compCanvasBase && this.compCanvasClip) {
                         const container = document.getElementById('comparison-container');
-                        const cw = container?.clientWidth || 600;
-                        const ch = container?.clientHeight || 520;
+                        const cw = container?.clientWidth || 700;
+                        const ch = cw;
 
                         await drawImageToCanvas(result.originalFile, this.compCanvasBase, cw, ch);
                         await drawImageToCanvas(activeSrc, this.compCanvasClip, cw, ch);
@@ -667,8 +727,8 @@ class SARUIController {
 
                     if (this.compCanvasBase && this.compCanvasClip) {
                         const container = document.getElementById('comparison-container');
-                        const cw = container?.clientWidth || 600;
-                        const ch = container?.clientHeight || 520;
+                        const cw = container?.clientWidth || 700;
+                        const ch = cw;
 
                         await drawImageToCanvas(result.originalFile, this.compCanvasBase, cw, ch);
                         await drawImageToCanvas(result.resultBlob, this.compCanvasClip, cw, ch);
@@ -695,6 +755,41 @@ class SARUIController {
         // Preset simulation if no file was uploaded
         this.drawComparisonData(this.currentPreset);
         this.finishProcessing();
+    }
+
+    // --- Class Coverage Stats Renderer ---
+    renderClassStats(classPercentages, meanConfidence) {
+        const panel = document.getElementById('class-stats-panel');
+        const barsContainer = document.getElementById('class-stats-bars');
+        const confLabel = document.getElementById('mean-confidence-label');
+        if (!panel || !barsContainer || !classPercentages) return;
+
+        const CLASS_META = [
+            { key: 'Water',           color: 'rgb(0, 0, 255)',       hex: '#0000ff' },
+            { key: 'Vegetation',      color: 'rgb(0, 200, 0)',       hex: '#00c800' },
+            { key: 'Urban/Built-up',  color: 'rgb(150, 150, 150)',   hex: '#969696' },
+            { key: 'Bare Soil/Other', color: 'rgb(194, 178, 128)',   hex: '#c2b280' },
+        ];
+
+        barsContainer.innerHTML = CLASS_META.map(({ key, hex }) => {
+            const pct = classPercentages[key] ?? 0;
+            return `
+                <div class="stat-row">
+                    <div class="stat-swatch" style="background:${hex}"></div>
+                    <span class="stat-label">${key}</span>
+                    <div class="stat-bar-wrap">
+                        <div class="stat-bar-fill" style="width:${pct}%;background:${hex}aa"></div>
+                    </div>
+                    <span class="stat-pct">${pct.toFixed(1)}%</span>
+                </div>
+            `;
+        }).join('');
+
+        if (confLabel && meanConfidence !== null) {
+            confLabel.textContent = `Confidence: ${(meanConfidence * 100).toFixed(1)}%`;
+        }
+
+        panel.classList.remove('hidden');
     }
 
     finishProcessing() {
@@ -810,6 +905,90 @@ class SARUIController {
         } catch (err) {
             console.error('Change Detection failed:', err);
             alert(`Change Detection Error: ${err.message}`);
+        } finally {
+            this.isProcessing = false;
+            if (this.btnRunModel) {
+                this.btnRunModel.disabled = false;
+                if (this.btnRunModel.dataset.origText) {
+                    this.btnRunModel.innerHTML = this.btnRunModel.dataset.origText;
+                }
+            }
+        }
+    }
+
+    // --- Multi-Sensor Fusion Handler ---
+    async processFusion() {
+        if (!this.lastFusionSarFile || !this.lastFusionOptFile) {
+            alert('Please upload both Primary SAR Raster and Partial Optical Reference files for Fusion.');
+            return;
+        }
+
+        if (this.isProcessing) return;
+        this.isProcessing = true;
+
+        if (this.btnRunModel) {
+            this.btnRunModel.disabled = true;
+            this.btnRunModel.dataset.origText = this.btnRunModel.innerHTML;
+            this.btnRunModel.innerHTML = `
+                <svg class="spin" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18"/></svg>
+                FUSING SENSORS...
+            `;
+        }
+
+        try {
+            const filterSelect = document.getElementById('filter-select');
+            const filterType = filterSelect ? filterSelect.value : 'enhanced_lee';
+
+            const formData = new FormData();
+            formData.append('sar_file', this.lastFusionSarFile);
+            formData.append('optical_file', this.lastFusionOptFile);
+            formData.append('filter_type', filterType);
+
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+            const response = await fetch('http://localhost:8000/fuse', {
+                method: 'POST',
+                body: formData,
+                signal: controller.signal
+            });
+
+            clearTimeout(timeoutId);
+
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                throw new Error(errData.detail || `Server error (status ${response.status})`);
+            }
+
+            const imageBlob = await response.blob();
+            const inferenceTimeMs = response.headers.get('X-Inference-Time-Ms') || 'N/A';
+
+            // Show main comparison stage container
+            if (this.comparisonContainer) {
+                this.comparisonContainer.classList.remove('hidden');
+            }
+
+            const cw = this.comparisonContainer?.clientWidth || 700;
+            const ch = cw;
+
+            await drawImageToCanvas(this.lastFusionSarFile, this.compCanvasBase, cw, ch);
+            await drawImageToCanvas(imageBlob, this.compCanvasClip, cw, ch);
+
+            if (this.badgeLeft) {
+                const ms = parseFloat(inferenceTimeMs);
+                const compact = !isNaN(ms) ? (ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${Math.round(ms)}ms`) : 'N/A';
+                this.badgeLeft.innerText = `FUSED OPTICAL SPECTRUM [${compact}]`;
+            }
+
+            this.lastInferenceTimeMs = inferenceTimeMs;
+            if (inferenceTimeMs !== 'N/A') {
+                localStorage.setItem('aether_last_inference_ms', inferenceTimeMs);
+            }
+
+            this.fetchHistory();
+        } catch (err) {
+            console.error('Fusion failed:', err);
+            alert(`Fusion Error: ${err.message}`);
         } finally {
             this.isProcessing = false;
             if (this.btnRunModel) {
@@ -962,7 +1141,7 @@ class SARUIController {
 
             if (colorizeBaseCanvas && colorizeClipCanvas && classifyBaseCanvas && classifyClipCanvas) {
                 const panelW = colorizeBaseCanvas.parentElement?.clientWidth || 400;
-                const panelH = Math.round(panelW * 0.75); // 4:3 aspect ratio
+                const panelH = panelW; // 1:1 aspect ratio square
 
                 const classifySrc = classifyResult.classifiedImage || classifyResult.resultBlob;
 
@@ -1429,15 +1608,15 @@ class SARUIController {
     // --- Canvas Setup & Drawing ---
     setupComparisonCanvases() {
         if (!this.compCanvasBase || !this.compCanvasClip) return;
-        this.compCanvasBase.width = this.compCanvasClip.width = 600;
-        this.compCanvasBase.height = this.compCanvasClip.height = 360;
+        this.compCanvasBase.width = this.compCanvasClip.width = 560;
+        this.compCanvasBase.height = this.compCanvasClip.height = 560;
         this.drawComparisonData('coastal');
     }
 
     drawComparisonData(presetKey) {
         const ctxBase = this.compCanvasBase.getContext('2d');
         const ctxClip = this.compCanvasClip.getContext('2d');
-        const w = 600, h = 360;
+        const w = 560, h = 560;
 
         const imgBase = ctxBase.createImageData(w, h);
         const imgClip = ctxClip.createImageData(w, h);
@@ -1501,6 +1680,11 @@ function bindCurtainSlider(sliderInputEl, clipWrapperEl) {
     sliderInputEl.addEventListener('input', (e) => {
         const val = e.target.value;
         clipWrapperEl.style.width = `${val}%`;
+        const parent = sliderInputEl.parentElement;
+        const handle = parent ? parent.querySelector('.curtain-handle') : null;
+        if (handle) {
+            handle.style.left = `${val}%`;
+        }
     });
 }
 
@@ -1574,6 +1758,8 @@ async function processSARFile(file, mode = 'colorize', groundTruthFile = null) {
                 inferenceTimeMs: data.inference_time_ms || response.headers.get('X-Inference-Time-Ms') || 'N/A',
                 imageSize: data.image_size || '',
                 modelCheckpoint: data.model_checkpoint || 'classifier',
+                classPercentages: data.class_percentages || null,
+                meanConfidence: data.mean_confidence ?? null,
                 mode: mode,
                 psnr: psnr,
                 ssim: ssim,

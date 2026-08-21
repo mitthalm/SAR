@@ -1082,7 +1082,10 @@ svg.spin {
         }
 
         .compare-stage-mini {
-            aspect-ratio: 4 / 3;
+            position: relative;
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1 / 1;
             border-radius: 0;
             border: none;
         }
@@ -1103,7 +1106,10 @@ svg.spin {
 .comparison-stage {
     position: relative;
     width: 100%;
+    max-width: 700px;
+    height: auto;
     aspect-ratio: 1 / 1;
+    margin: 0 auto;
     border-radius: var(--radius-md);
     overflow: hidden;
     border: 1px solid var(--glass-border);
@@ -1115,6 +1121,7 @@ svg.spin {
         left: 0;
         width: 100%;
         height: 100%;
+        object-fit: cover;
     }
 
     .colorized-wrapper {
@@ -1126,6 +1133,16 @@ svg.spin {
         overflow: hidden;
         border-right: 2px solid var(--accent-cyan);
         box-shadow: 5px 0 20px rgba(0, 243, 255, 0.5);
+
+        canvas.viewer-layer {
+            position: absolute;
+            top: 0;
+            left: 0;
+            height: 100%;
+            width: auto;
+            aspect-ratio: 1 / 1;
+            object-fit: cover;
+        }
     }
 
     .curtain-handle {
@@ -1268,6 +1285,44 @@ svg.spin {
             .b-sub { font-size: 11px; color: var(--accent-teal); margin-top: 4px; }
         }
     }
+
+    .validation-note-box {
+        background: var(--glass-bg);
+        backdrop-filter: blur(16px);
+        border: 1px solid var(--glass-border);
+        border-left: 4px solid var(--accent-cyan);
+        border-radius: var(--radius-lg);
+        padding: 24px 28px;
+        box-shadow: var(--shadow-glass);
+        animation: fadeIn 0.4s ease-out;
+
+        .note-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            background: rgba(0, 243, 255, 0.12);
+            border: 1px solid rgba(0, 243, 255, 0.3);
+            padding: 4px 10px;
+            border-radius: 6px;
+            margin-bottom: 12px;
+
+            svg {
+                stroke: currentColor;
+            }
+        }
+
+        p {
+            font-family: var(--font-body);
+            font-size: 15px;
+            line-height: 1.65;
+            color: var(--text-white);
+            margin: 0;
+        }
+    }
 }
 
 /* ==========================================================================
@@ -1275,6 +1330,16 @@ svg.spin {
    ========================================================================== */
 
 .change-detect-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    &.hidden {
+        display: none !important;
+    }
+}
+
+.fusion-controls {
     display: flex;
     flex-direction: column;
     gap: 16px;
@@ -1363,6 +1428,7 @@ svg.spin {
                 width: 100%;
                 aspect-ratio: 1 / 1;
                 background: #000;
+                object-fit: contain;
             }
         }
     }
@@ -1590,6 +1656,93 @@ svg.spin {
 
         .legend-items {
             gap: 10px;
+        }
+    }
+}
+
+/* ==========================================================================
+   CLASS PERCENTAGE BREAKDOWN PANEL
+   ========================================================================== */
+
+.class-stats-panel {
+    margin-top: 14px;
+    padding: 14px 16px;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--glass-border);
+    border-radius: 10px;
+    animation: fadeIn 0.3s ease-out;
+
+    &.hidden { display: none !important; }
+
+    .class-stats-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+
+        .class-stats-title {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.08em;
+            color: var(--accent-cyan);
+        }
+
+        .class-stats-confidence {
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+    }
+
+    .class-stats-bars {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+
+        .stat-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+
+            .stat-swatch {
+                width: 10px;
+                height: 10px;
+                border-radius: 2px;
+                flex-shrink: 0;
+            }
+
+            .stat-label {
+                font-family: var(--font-mono);
+                font-size: 11px;
+                color: var(--text-muted);
+                width: 112px;
+                flex-shrink: 0;
+            }
+
+            .stat-bar-wrap {
+                flex: 1;
+                height: 6px;
+                background: rgba(255,255,255,0.06);
+                border-radius: 3px;
+                overflow: hidden;
+
+                .stat-bar-fill {
+                    height: 100%;
+                    border-radius: 3px;
+                    transition: width 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+                }
+            }
+
+            .stat-pct {
+                font-family: var(--font-mono);
+                font-size: 11px;
+                font-weight: 700;
+                color: var(--text-white);
+                width: 42px;
+                text-align: right;
+                flex-shrink: 0;
+            }
         }
     }
 }
